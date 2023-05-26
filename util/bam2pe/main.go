@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/biogo/hts/bam"
@@ -46,7 +46,6 @@ func main() {
 		log.Printf("file %q has no bgzf magic block: may be truncated", *input)
 	}
 	var br = simpleUtil.HandleError(bam.NewReader(f, 1)).(*bam.Reader)
-
 	// output
 	var o1 = osUtil.Create(*out1)
 	defer simpleUtil.DeferClose(o1)
@@ -60,13 +59,26 @@ func main() {
 	)
 	br2pe(br, read1, read2)
 
+	writePE(o1, o2, read1, read2)
+
 	for s, r1 := range read1 {
 		var r2, ok = read2[s]
 		if !ok {
 			continue
 		}
-		simpleUtil.HandleError(fmt.Fprint(o1, record2fq(r1)))
-		simpleUtil.HandleError(fmt.Fprint(o2, record2fq(r2)))
+		simpleUtil.HandleError(o1.WriteString(record2fq(r1)))
+		simpleUtil.HandleError(o2.WriteString(record2fq(r2)))
+	}
+}
+
+func writePE(o1, o2 *os.File, read1, read2 map[string]*sam.Record) {
+	for s, r1 := range read1 {
+		var r2, ok = read2[s]
+		if !ok {
+			continue
+		}
+		simpleUtil.HandleError(o1.WriteString(record2fq(r1)))
+		simpleUtil.HandleError(o2.WriteString(record2fq(r2)))
 	}
 }
 
