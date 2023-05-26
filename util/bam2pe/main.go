@@ -3,15 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/biogo/hts/bam"
-	"github.com/biogo/hts/bgzf"
-	"github.com/biogo/hts/sam"
-	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"io"
 	"log"
 	"strings"
 
+	"github.com/biogo/hts/bam"
+	"github.com/biogo/hts/bgzf"
+	"github.com/biogo/hts/sam"
 	"github.com/liserjrqlxue/goUtil/osUtil"
+	"github.com/liserjrqlxue/goUtil/simpleUtil"
 )
 
 var (
@@ -20,21 +20,44 @@ var (
 		"",
 		"input bam",
 	)
+	out1 = flag.String(
+		"1",
+		"",
+		"output read1",
+	)
+	out2 = flag.String(
+		"2",
+		"",
+		"output read2",
+	)
 )
 
 func main() {
 	flag.Parse()
-	if *input == "" {
+	if *input == "" || *out1 == "" || *out2 == "" {
 		flag.Usage()
-		log.Fatal("-i required!")
+		log.Fatal("-i/-o required!")
 	}
 
+	// input
 	var f = osUtil.Open(*input)
 	defer simpleUtil.DeferClose(f)
 	if !simpleUtil.HandleError(bgzf.HasEOF(f)).(bool) {
 		log.Printf("file %q has no bgzf magic block: may be truncated", *input)
 	}
 	var br = simpleUtil.HandleError(bam.NewReader(f, 1)).(*bam.Reader)
+
+	// output
+	var o1 = osUtil.Create(*out1)
+	defer simpleUtil.DeferClose(o1)
+	var o2 = osUtil.Create(*out2)
+	defer simpleUtil.DeferClose(o2)
+
+	// PE
+	var (
+		read1 = make(map[string]*sam.Record, 1e6)
+		read2 = make(map[string]*sam.Record, 1e6)
+	)
 
 	for {
 		var (
@@ -46,8 +69,20 @@ func main() {
 		if err != nil {
 			log.Fatalf("fail to read BAM record: [%v]", err)
 		}
-
-		fmt.Print(record2fq(r))
+		if r.Flags&sam.Read1 == sam.Read1 {
+			read1[r.Name] = r
+		}
+		if r.Flags&sam.Read2 == sam.Read2 {
+			read2[r.Name] = r
+		}
+	}
+	for s, r1 := range read1 {
+		var r2, ok = read2[s]
+		if !ok {
+			continue
+		}
+		simpleUtil.HandleError(fmt.Fprint(o1, record2fq(r1)))
+		simpleUtil.HandleError(fmt.Fprint(o2, record2fq(r2)))
 	}
 }
 
@@ -81,9 +116,9 @@ func record2fq(r *sam.Record) string {
 		note = "-"
 		seq = Reverse(seq)
 		qual = Reverse(qual)
-		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, note, dnaComplement.Replace(string(seq)), qual)
+		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, dnaComplement.Replace(string(seq)), note, qual)
 	} else {
-		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, note, seq, qual)
+		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, seq, note, qual)
 	}
 }
 
