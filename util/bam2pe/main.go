@@ -129,6 +129,7 @@ func record2fq(r *sam.Record) string {
 		fastq strings.Builder
 	)
 	fastq.Grow(255)
+	fastq.WriteByte('@')
 	fastq.WriteString(r.Name)
 	fastq.WriteByte('\n')
 	if r.Flags&sam.Reverse == sam.Reverse {
