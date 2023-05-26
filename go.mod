@@ -1,4 +1,4 @@
-module hts
+module github.com/liserjrqlxue/hts
 
 go 1.20
 
