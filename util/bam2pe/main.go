@@ -58,7 +58,19 @@ func main() {
 		read1 = make(map[string]*sam.Record, 1e6)
 		read2 = make(map[string]*sam.Record, 1e6)
 	)
+	br2pe(br, read1, read2)
 
+	for s, r1 := range read1 {
+		var r2, ok = read2[s]
+		if !ok {
+			continue
+		}
+		simpleUtil.HandleError(fmt.Fprint(o1, record2fq(r1)))
+		simpleUtil.HandleError(fmt.Fprint(o2, record2fq(r2)))
+	}
+}
+
+func br2pe(br *bam.Reader, r1, r2 map[string]*sam.Record) {
 	for {
 		var (
 			r, err = br.Read()
@@ -70,19 +82,11 @@ func main() {
 			log.Fatalf("fail to read BAM record: [%v]", err)
 		}
 		if r.Flags&sam.Read1 == sam.Read1 {
-			read1[r.Name] = r
+			r1[r.Name] = r
 		}
 		if r.Flags&sam.Read2 == sam.Read2 {
-			read2[r.Name] = r
+			r2[r.Name] = r
 		}
-	}
-	for s, r1 := range read1 {
-		var r2, ok = read2[s]
-		if !ok {
-			continue
-		}
-		simpleUtil.HandleError(fmt.Fprint(o1, record2fq(r1)))
-		simpleUtil.HandleError(fmt.Fprint(o2, record2fq(r2)))
 	}
 }
 
