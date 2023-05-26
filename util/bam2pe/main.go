@@ -71,18 +71,20 @@ func record2fq(r *sam.Record) string {
 		note = "+"
 		qual = formatQual(r.Qual)
 	)
-	if r.Flags&sam.Reverse == sam.Reverse {
-		note = "-"
-		seq = []byte(dnaComplement.Replace(string(Reverse(seq))))
-		qual = Reverse(qual)
-	}
 	if r.Flags&sam.Read1 == sam.Read1 {
 		name += "/1"
 	}
 	if r.Flags&sam.Read2 == sam.Read2 {
 		name += "/2"
 	}
-	return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, note, seq, qual)
+	if r.Flags&sam.Reverse == sam.Reverse {
+		note = "-"
+		seq = Reverse(seq)
+		qual = Reverse(qual)
+		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, note, dnaComplement.Replace(string(seq)), qual)
+	} else {
+		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, note, seq, qual)
+	}
 }
 
 // from https://github.com/biogo/hts/blob/master/sam/record.go
