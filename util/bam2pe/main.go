@@ -10,6 +10,7 @@ import (
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/sam"
+	gzip "github.com/klauspost/pgzip"
 	"github.com/liserjrqlxue/goUtil/osUtil"
 	"github.com/liserjrqlxue/goUtil/simpleUtil"
 )
@@ -23,13 +24,24 @@ var (
 	out1 = flag.String(
 		"1",
 		"",
-		"output read1",
+		"output read1, gzip format",
 	)
 	out2 = flag.String(
 		"2",
 		"",
-		"output read2",
+		"output read2, gzip format",
 	)
+)
+
+var (
+	f  *os.File
+	o1 *os.File
+	o2 *os.File
+
+	br *bam.Reader
+
+	read1 map[string]*sam.Record
+	read2 map[string]*sam.Record
 )
 
 func main() {
@@ -40,45 +52,40 @@ func main() {
 	}
 
 	// input
-	var f = osUtil.Open(*input)
+	f = osUtil.Open(*input)
 	defer simpleUtil.DeferClose(f)
 	if !simpleUtil.HandleError(bgzf.HasEOF(f)).(bool) {
 		log.Printf("file %q has no bgzf magic block: may be truncated", *input)
 	}
-	var br = simpleUtil.HandleError(bam.NewReader(f, 1)).(*bam.Reader)
-	// output
-	var o1 = osUtil.Create(*out1)
-	defer simpleUtil.DeferClose(o1)
-	var o2 = osUtil.Create(*out2)
-	defer simpleUtil.DeferClose(o2)
+	br = simpleUtil.HandleError(bam.NewReader(f, 1)).(*bam.Reader)
 
-	// PE
-	var (
-		read1 = make(map[string]*sam.Record, 1e6)
-		read2 = make(map[string]*sam.Record, 1e6)
-	)
+	// output
+	o1 = osUtil.Create(*out1)
+	defer simpleUtil.DeferClose(o1)
+	o2 = osUtil.Create(*out2)
+	defer simpleUtil.DeferClose(o2)
+	var zw1 = gzip.NewWriter(o1)
+	defer simpleUtil.DeferClose(zw1)
+	var zw2 = gzip.NewWriter(o2)
+	defer simpleUtil.DeferClose(zw2)
+
+	read1 = make(map[string]*sam.Record, 1e6)
+	read2 = make(map[string]*sam.Record, 1e6)
 	br2pe(br, read1, read2)
 
-	writePE(o1, o2, read1, read2)
+	writePE(zw1, zw2, read1, read2)
 
-	for s, r1 := range read1 {
-		var r2, ok = read2[s]
-		if !ok {
-			continue
-		}
-		simpleUtil.HandleError(o1.WriteString(record2fq(r1)))
-		simpleUtil.HandleError(o2.WriteString(record2fq(r2)))
-	}
 }
 
-func writePE(o1, o2 *os.File, read1, read2 map[string]*sam.Record) {
+func writePE(w1, w2 io.Writer, read1, read2 map[string]*sam.Record) {
+
 	for s, r1 := range read1 {
 		var r2, ok = read2[s]
 		if !ok {
 			continue
 		}
-		simpleUtil.HandleError(o1.WriteString(record2fq(r1)))
-		simpleUtil.HandleError(o2.WriteString(record2fq(r2)))
+		simpleUtil.HandleError(w1.Write([]byte(record2fq(r1))))
+		simpleUtil.HandleError(w2.Write([]byte(record2fq(r2))))
 	}
 }
 

@@ -1,23 +1,19 @@
 package main
 
 import (
+	gzip_org "compress/gzip"
 	"fmt"
-	"github.com/biogo/hts/bam"
-	"github.com/biogo/hts/bgzf"
-	"github.com/biogo/hts/sam"
-	"github.com/liserjrqlxue/goUtil/osUtil"
-	"github.com/liserjrqlxue/goUtil/simpleUtil"
 	"log"
 	"os"
 	"path/filepath"
 	"testing"
-)
 
-var (
-	f     *os.File
-	br    *bam.Reader
-	read1 map[string]*sam.Record
-	read2 map[string]*sam.Record
+	"github.com/biogo/hts/bam"
+	"github.com/biogo/hts/bgzf"
+	"github.com/biogo/hts/sam"
+	gzip "github.com/klauspost/compress/gzip"
+	"github.com/liserjrqlxue/goUtil/osUtil"
+	"github.com/liserjrqlxue/goUtil/simpleUtil"
 )
 
 func TestMain(m *testing.M) {
@@ -104,9 +100,49 @@ func BenchmarkWritePE(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var o1 = osUtil.Create(filepath.Join(dir, "test.1.fq"))
-		var o2 = osUtil.Create(filepath.Join(dir, "test.2.fq"))
+		o1 = osUtil.Create(filepath.Join(dir, "test.1.fq"))
+		o2 = osUtil.Create(filepath.Join(dir, "test.2.fq"))
 		writePE(o1, o2, read1, read2)
+		simpleUtil.CheckErr(o1.Close())
+		simpleUtil.CheckErr(o2.Close())
+	}
+}
+
+func BenchmarkWritePE_gzip_org(b *testing.B) {
+	var dir, err = os.MkdirTemp("", "fsdemo")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		o1 = osUtil.Create(filepath.Join(dir, "test.1.fq.gz"))
+		o2 = osUtil.Create(filepath.Join(dir, "test.2.fq.gz"))
+		var zw1 = gzip_org.NewWriter(o1)
+		var zw2 = gzip_org.NewWriter(o1)
+		writePE(zw1, zw2, read1, read2)
+		simpleUtil.CheckErr(zw1.Close())
+		simpleUtil.CheckErr(zw2.Close())
+		simpleUtil.CheckErr(o1.Close())
+		simpleUtil.CheckErr(o2.Close())
+	}
+}
+
+func BenchmarkWritePE_klauspos_gzip(b *testing.B) {
+	var dir, err = os.MkdirTemp("", "fsdemo")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		o1 = osUtil.Create(filepath.Join(dir, "test.1.fq.gz"))
+		o2 = osUtil.Create(filepath.Join(dir, "test.2.fq.gz"))
+		var zw1 = gzip.NewWriter(o1)
+		var zw2 = gzip.NewWriter(o1)
+		writePE(zw1, zw2, read1, read2)
+		simpleUtil.CheckErr(zw1.Close())
+		simpleUtil.CheckErr(zw2.Close())
 		simpleUtil.CheckErr(o1.Close())
 		simpleUtil.CheckErr(o2.Close())
 	}
