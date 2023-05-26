@@ -105,25 +105,27 @@ var dnaComplement = strings.NewReplacer(
 
 func record2fq(r *sam.Record) string {
 	var (
-		name = r.Name
-		seq  = formatSeq(r.Seq)
-		note = "+"
-		qual = formatQual(r.Qual)
+		seq   = formatSeq(r.Seq)
+		qual  = formatQual(r.Qual)
+		fastq strings.Builder
 	)
-	if r.Flags&sam.Read1 == sam.Read1 {
-		name += "/1"
-	}
-	if r.Flags&sam.Read2 == sam.Read2 {
-		name += "/2"
-	}
+	fastq.Grow(255)
+	fastq.WriteString(r.Name)
+	fastq.WriteByte('\n')
 	if r.Flags&sam.Reverse == sam.Reverse {
-		note = "-"
 		seq = Reverse(seq)
 		qual = Reverse(qual)
-		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, dnaComplement.Replace(string(seq)), note, qual)
+		fastq.WriteString(dnaComplement.Replace(string(seq)))
+		fastq.Write([]byte{'\n', '+', '\n'})
+		fastq.Write(qual)
+		fastq.WriteByte('\n')
 	} else {
-		return fmt.Sprintf("%s\n%s\n%s\n%s\n", name, seq, note, qual)
+		fastq.Write(seq)
+		fastq.Write([]byte{'\n', '+', '\n'})
+		fastq.Write(qual)
+		fastq.WriteByte('\n')
 	}
+	return fastq.String()
 }
 
 // from https://github.com/biogo/hts/blob/master/sam/record.go
