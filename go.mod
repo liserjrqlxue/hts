@@ -1,6 +1,6 @@
 module github.com/liserjrqlxue/hts
 
-go 1.20
+go 1.24
 
 require (
 	github.com/biogo/hts v1.4.4
@@ -8,4 +8,4 @@ require (
 	github.com/liserjrqlxue/goUtil v0.0.51
 )
 
-require github.com/klauspost/compress v1.16.5 // indirect
+require github.com/klauspost/compress v1.18.7
